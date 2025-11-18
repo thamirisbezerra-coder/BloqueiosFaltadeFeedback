@@ -238,6 +238,26 @@
                 }
             };
 
+            // Nova função para concluir a tarefa do usuário (chamada pelo modal de desbloqueio)
+            const handleConcludeTask = (userToConclude) => {
+                const updatedUsers = users.map(u => {
+                    if (u.name === userToConclude.name) {
+                        const clearedPending = u.pending;
+                        // Zera o pending e soma o valor antigo ao respondido
+                        return { 
+                            ...u, 
+                            pending: 0, 
+                            answered: u.answered + clearedPending 
+                        };
+                    }
+                    return u;
+                });
+                
+                // Atualiza o estado e salva no Firebase
+                setUsers(updatedUsers);
+                saveToFirebase(updatedUsers);
+            };
+
             // Lógica CORRIGIDA: Garante que "Todos" seja sempre o primeiro item.
             const segments = useMemo(() => {
                 const uniqueSegments = [...new Set(users.map(u => u.segment))];
@@ -301,6 +321,160 @@
                 saveToFirebase(updatedUsers);
             };
 
+            // --- COMPONENTE: MODAL DE DESBLOQUEIO ---
+            const LockModal = ({ user, onClose }) => {
+                if (!user) return null;
+                const isBlocked = user.pending > 0;
+                
+                const [isPasswordInputVisible, setIsPasswordInputVisible] = useState(false);
+                const [tempPassword, setTempPassword] = useState('');
+                const [tempError, setTempError] = useState('');
+                const [isProcessing, setIsProcessing] = useState(false); 
+                const [isConcludedLocally, setIsConcludedLocally] = useState(false);
+
+                // Efeito para fechar o modal quando o Firebase confirma que a tarefa foi zerada
+                useEffect(() => {
+                    if (!isBlocked && isConcludedLocally) {
+                        // Espera um breve momento para garantir que o usuário veja a mudança no cartão principal
+                        const timer = setTimeout(onClose, 500); 
+                        return () => clearTimeout(timer);
+                    }
+                    // Se o usuário foi bloqueado fora do modal, fecha imediatamente.
+                    if (!isBlocked && !isConcludedLocally) {
+                        onClose();
+                    }
+                }, [isBlocked, isConcludedLocally, onClose]);
+                
+                const handleUnlock = (e) => {
+                    e.preventDefault();
+                    if (tempPassword === 'admin') { 
+                        setIsProcessing(true); // Inicia o spinner
+                        setTempError('');
+                        setIsPasswordInputVisible(false);
+
+                        // Envia a atualização de conclusão para o Firebase
+                        handleConcludeTask(user);
+                        
+                        // Define o estado local para mostrar a conclusão (e prepara para fechar via useEffect)
+                        setIsConcludedLocally(true);
+
+                    } else {
+                        setTempError('Senha incorreta.');
+                        setTempPassword('');
+                    }
+                };
+
+                const isCurrentlyLocked = isBlocked && !isConcludedLocally;
+                const colorClass = isCurrentlyLocked ? 'border-red-600/50' : 'border-green-500/50';
+                const bgClass = isCurrentlyLocked ? 'bg-red-600/20 border-red-600/30' : 'bg-green-600/20 border-green-600/30';
+                const statusText = isCurrentlyLocked ? 'ACESSO BLOQUEADO' : 'TAREFA CONCLUÍDA';
+                const statusSubText = isCurrentlyLocked ? 'O sistema aguarda ações pendentes para liberar seu acesso.' : 'Pendências zeradas e acesso liberado permanentemente.';
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                        <div className={`bg-zinc-900 border ${colorClass} w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col relative`}>
+                            <div className={`${bgClass} p-8 flex flex-col items-center justify-center border-b`}>
+                                {isCurrentlyLocked ? (
+                                    <Icons.Lock className="w-20 h-20 text-red-500 mb-4 animate-pulse" />
+                                ) : (
+                                    <Icons.CheckCircle className="w-20 h-20 text-green-500 mb-4" />
+                                )}
+                                <h2 className="text-3xl font-bold text-white tracking-tight">
+                                    {statusText}
+                                </h2>
+                                <p className={`${isCurrentlyLocked ? 'text-red-200' : 'text-green-200'} mt-2 text-center`}>
+                                    {statusSubText}
+                                </p>
+                                <div className="mt-4 px-4 py-1 bg-black/30 rounded-full border border-white/10 text-sm text-white/70 font-medium">
+                                    {user.segment}
+                                </div>
+                            </div>
+
+                            <div className="p-8 flex flex-col items-center">
+                                <h3 className="text-2xl text-white font-semibold mb-2 text-center">{user.name}</h3>
+                                
+                                <div className="flex items-center gap-4 mb-8 mt-4">
+                                   <div className="text-center p-4 bg-zinc-800 rounded-lg border border-zinc-700">
+                                     <span className={`block text-4xl font-bold ${isCurrentlyLocked ? 'text-red-500' : 'text-green-500'}`}>
+                                        {isCurrentlyLocked ? user.pending : 0}
+                                     </span>
+                                     <span className="text-xs text-gray-400 uppercase tracking-wider">Pendências</span>
+                                   </div>
+                                </div>
+                                
+                                {isPasswordInputVisible && (
+                                    <form onSubmit={handleUnlock} className="w-full max-w-sm space-y-3 mb-6 animate-in fade-in">
+                                        <input
+                                            type="password"
+                                            value={tempPassword}
+                                            onChange={(e) => setTempPassword(e.target.value)}
+                                            className="w-full px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                                            placeholder="Digite a senha"
+                                            autoFocus
+                                            disabled={isProcessing}
+                                        />
+                                        {tempError && <p className="text-red-400 text-sm">{tempError}</p>}
+                                        <div className="flex gap-2 justify-end">
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setIsPasswordInputVisible(false)}
+                                                className="px-4 py-2 text-sm bg-zinc-700 text-white rounded-lg hover:bg-zinc-600"
+                                                disabled={isProcessing}
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button 
+                                                type="submit" 
+                                                className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 justify-center"
+                                                disabled={isProcessing}
+                                            >
+                                                {isProcessing ? (
+                                                    <>
+                                                        <Icons.Loader2 className="w-4 h-4 animate-spin" />
+                                                        Salvando...
+                                                    </>
+                                                ) : 'Concluir e Liberar'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
+                                
+                                <div className="w-full">
+                                    <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden mb-2">
+                                      <div 
+                                        className={`h-full transition-all duration-500 ${isCurrentlyLocked ? 'bg-gradient-to-r from-red-600 to-orange-600' : 'bg-green-500'}`}
+                                        style={{ width: user.total > 0 ? `${Math.min(user.answered / user.total * 100, 100)}%` : '0%' }}
+                                      />
+                                    </div>
+                                    <p className="text-zinc-500 text-sm mb-8 text-center w-full">
+                                      Progresso: {user.answered} de {user.total} realizados ({user.total > 0 ? Math.round((user.answered/user.total)*100) : 0}%)
+                                    </p>
+                                </div>
+
+
+                                {isCurrentlyLocked && !isPasswordInputVisible && !isProcessing && (
+                                    <button 
+                                      onClick={() => setIsPasswordInputVisible(true)}
+                                      className={`px-6 py-3 text-white rounded-lg transition-colors flex items-center gap-2 group border bg-zinc-800 hover:bg-zinc-700 border-zinc-700`}
+                                    >
+                                        <Icons.Unlock className="w-4 h-4 group-hover:text-green-400 transition-colors" />
+                                        <span>Concluir Tarefa e Liberar Acesso</span>
+                                    </button>
+                                )}
+                                
+                                {(!isCurrentlyLocked || isProcessing) && (
+                                    <button onClick={onClose} className="mt-4 px-6 py-3 text-white bg-green-700 hover:bg-green-600 rounded-lg transition-colors text-sm font-medium">
+                                        {isProcessing ? 'Aguarde...' : 'Fechar'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+            // --- FIM COMPONENTE: MODAL DE DESBLOQUEIO ---
+
+
             if (isLoading) {
                 return (
                     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-slate-400 gap-4">
@@ -345,58 +519,7 @@
                         </div>
                     )}
 
-                    {selectedUser && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-                            <div className={`bg-zinc-900 border ${selectedUser.pending > 0 ? 'border-red-600/50' : 'border-green-500/50'} w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col relative`}>
-                                <div className={`${selectedUser.pending > 0 ? 'bg-red-600/20 border-red-600/30' : 'bg-green-600/20 border-green-600/30'} p-8 flex flex-col items-center justify-center border-b`}>
-                                    {selectedUser.pending > 0 ? (
-                                        <Icons.Lock className="w-20 h-20 text-red-500 mb-4 animate-pulse" />
-                                    ) : (
-                                        <Icons.CheckCircle className="w-20 h-20 text-green-500 mb-4" />
-                                    )}
-                                    <h2 className="text-3xl font-bold text-white tracking-tight">
-                                        {selectedUser.pending > 0 ? 'ACESSO BLOQUEADO' : 'TUDO CERTO!'}
-                                    </h2>
-                                    <p className={`${selectedUser.pending > 0 ? 'text-red-200' : 'text-green-200'} mt-2 text-center`}>
-                                        {selectedUser.pending > 0 
-                                            ? 'O sistema aguarda ações pendentes para liberar seu acesso.'
-                                            : 'Você não possui pendências. Acesso liberado.'}
-                                    </p>
-                                    <div className="mt-4 px-4 py-1 bg-black/30 rounded-full border border-white/10 text-sm text-white/70 font-medium">
-                                        {selectedUser.segment}
-                                    </div>
-                                </div>
-
-                                <div className="p-8 flex flex-col items-center">
-                                    <h3 className="text-2xl text-white font-semibold mb-2 text-center">{selectedUser.name}</h3>
-                                    <div className="flex items-center gap-4 mb-8 mt-4">
-                                    <div className="text-center p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-                                        <span className={`block text-4xl font-bold ${selectedUser.pending > 0 ? 'text-red-500' : 'text-green-500'}`}>{selectedUser.pending}</span>
-                                        <span className="text-xs text-gray-400 uppercase tracking-wider">Pendências</span>
-                                    </div>
-                                    </div>
-                                    
-                                    <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden mb-2">
-                                        <div 
-                                            className={`h-full transition-all duration-500 ${selectedUser.pending > 0 ? 'bg-gradient-to-r from-red-600 to-orange-600' : 'bg-green-500'}`}
-                                            style={{ width: selectedUser.total > 0 ? `${(selectedUser.answered / selectedUser.total) * 100}%` : '0%' }}
-                                        />
-                                    </div>
-                                    <p className="text-zinc-500 text-sm mb-8 text-center w-full">
-                                        Progresso: {selectedUser.answered} de {selectedUser.total} realizados ({selectedUser.total > 0 ? Math.round((selectedUser.answered/selectedUser.total)*100) : 0}%)
-                                    </p>
-
-                                    <button 
-                                        onClick={() => setSelectedUser(null)}
-                                        className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg border border-zinc-700 transition-colors flex items-center gap-2 group"
-                                    >
-                                        <Icons.Unlock className="w-4 h-4 group-hover:text-green-400 transition-colors" />
-                                        <span>{selectedUser.pending > 0 ? 'Modo Administrador: Liberar Temporariamente' : 'Fechar Janela'}</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {selectedUser && <LockModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
 
                     <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-40">
                         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -522,7 +645,9 @@
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredUsers.map((user, index) => {
-                                const percent = user.total > 0 ? (user.answered / user.total) * 100 : 0;
+                                const rawPercent = user.total > 0 ? (user.answered / user.total) * 100 : 0;
+                                const displayPercent = Math.min(rawPercent, 100); // Limita o display visual em 100%
+                                
                                 const isBlocked = user.pending > 0;
                                 const isCritical = user.pending > 50;
                                 
@@ -591,7 +716,8 @@
                                                         />
                                                     ) : (
                                                         <span className="block text-2xl font-bold text-slate-700">
-                                                            {isAdmin ? user.answered : Math.round(percent) + '%'}
+                                                            {/* Aqui mostramos a porcentagem calculada, mesmo que seja > 100% */}
+                                                            {Math.round(rawPercent) + '%'}
                                                         </span>
                                                     )}
                                                     <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block mt-1">
@@ -608,7 +734,7 @@
                                                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                                                     <div 
                                                         className={`h-full rounded-full transition-all duration-500 ${isBlocked ? (isCritical ? 'bg-red-500' : 'bg-blue-500') : 'bg-green-500'}`}
-                                                        style={{ width: `${percent}%` }}
+                                                        style={{ width: `${displayPercent}%` }}
                                                     />
                                                 </div>
                                             </div>
@@ -636,3 +762,4 @@
     </script>
 </body>
 </html>
+

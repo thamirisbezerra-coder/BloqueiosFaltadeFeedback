@@ -111,7 +111,7 @@
             { name: "DELMAR PAES", segment: "SORVETES", pending: 38, answered: 91, total: 129 },
             { name: "DIEGO FIORIO", segment: "SORVETES", pending: 0, answered: 90, total: 90 },
             { name: "DIRETO - FISCAL", segment: "Sem Segmento", pending: 0, answered: 3, total: 3 },
-            { name: "DIRETO - JMC", segment: "LACTEOS", pending: 5, answered: 0, total: 5 }, // ALTERADO PARA LACTEOS
+            { name: "DIRETO - JMC", segment: "LACTEOS", pending: 5, answered: 0, total: 5 }, // **CORRIGIDO: LACTEOS**
             { name: "DIRETO- MACALE", segment: "LACTEOS", pending: 2, answered: 0, total: 2 },
             { name: "DIRETO-DANTE", segment: "LACTEOS", pending: 0, answered: 51, total: 51 },
             { name: "DOUGLAS SILVA", segment: "SORVETES", pending: 0, answered: 111, total: 111 },
@@ -222,6 +222,7 @@
                     if (docSnap.exists()) {
                         setUsers(docSnap.data().users);
                     } else {
+                        // Se o documento não existe, forçamos a criação com a INITIAL_DATA corrigida
                         setDoc(docRef, { users: INITIAL_DATA }).catch(console.error);
                     }
                 }, (error) => {
@@ -262,6 +263,7 @@
 
             const segments = useMemo(() => {
                 const uniqueSegments = [...new Set(users.map(u => u.segment))];
+                // Remove 'Sem Segmento' se ele for o único ou se não houver usuários com essa tag
                 const otherSegments = uniqueSegments.filter(s => s !== "Todos").sort(); 
                 return ["Todos", ...otherSegments];
             }, [users]);

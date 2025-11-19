@@ -10,7 +10,8 @@
     
     <!-- Carrega React e ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Mudei a ordem da URL para evitar o erro de import do navegador -->
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script> 
     
     <!-- Carrega o Babel para traduzir o código React -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -47,7 +48,11 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // --- CORREÇÃO DO ERRO: Atribui as variáveis globais do window ---
         const React = window.React;
+        const ReactDOM = window.ReactDOM; // Adicionado para resolver o ReferenceError
+        // -----------------------------------------------------------------
+
         const useState = React.useState;
         const useEffect = React.useEffect;
         const useMemo = React.useMemo;
@@ -238,12 +243,10 @@
                 }
             };
 
-            // Nova função para concluir a tarefa do usuário (chamada pelo modal de desbloqueio)
             const handleConcludeTask = (userToConclude) => {
                 const updatedUsers = users.map(u => {
                     if (u.name === userToConclude.name) {
                         const clearedPending = u.pending;
-                        // Zera o pending e soma o valor antigo ao respondido
                         return { 
                             ...u, 
                             pending: 0, 
@@ -253,17 +256,13 @@
                     return u;
                 });
                 
-                // Atualiza o estado e salva no Firebase
                 setUsers(updatedUsers);
                 saveToFirebase(updatedUsers);
             };
 
-            // Lógica CORRIGIDA: Garante que "Todos" seja sempre o primeiro item.
             const segments = useMemo(() => {
                 const uniqueSegments = [...new Set(users.map(u => u.segment))];
-                // Remove 'Todos' se existir, e ordena o restante alfabeticamente
                 const otherSegments = uniqueSegments.filter(s => s !== "Todos").sort(); 
-                // Retorna 'Todos' como o primeiro elemento
                 return ["Todos", ...otherSegments];
             }, [users]);
 
@@ -332,14 +331,11 @@
                 const [isProcessing, setIsProcessing] = useState(false); 
                 const [isConcludedLocally, setIsConcludedLocally] = useState(false);
 
-                // Efeito para fechar o modal quando o Firebase confirma que a tarefa foi zerada
                 useEffect(() => {
                     if (!isBlocked && isConcludedLocally) {
-                        // Espera um breve momento para garantir que o usuário veja a mudança no cartão principal
                         const timer = setTimeout(onClose, 500); 
                         return () => clearTimeout(timer);
                     }
-                    // Se o usuário foi bloqueado fora do modal, fecha imediatamente.
                     if (!isBlocked && !isConcludedLocally) {
                         onClose();
                     }
@@ -348,14 +344,11 @@
                 const handleUnlock = (e) => {
                     e.preventDefault();
                     if (tempPassword === 'admin') { 
-                        setIsProcessing(true); // Inicia o spinner
+                        setIsProcessing(true);
                         setTempError('');
                         setIsPasswordInputVisible(false);
 
-                        // Envia a atualização de conclusão para o Firebase
                         handleConcludeTask(user);
-                        
-                        // Define o estado local para mostrar a conclusão (e prepara para fechar via useEffect)
                         setIsConcludedLocally(true);
 
                     } else {
@@ -373,6 +366,15 @@
                 return (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                         <div className={`bg-zinc-900 border ${colorClass} w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col relative`}>
+                            {/* Ícone X para fechar a modal */}
+                            <button 
+                                onClick={onClose} 
+                                className="absolute top-4 right-4 p-2 bg-zinc-800/80 hover:bg-zinc-700 rounded-full text-white z-10 transition-colors"
+                                title="Fechar"
+                            >
+                                <Icons.X className="w-5 h-5" />
+                            </button>
+
                             <div className={`${bgClass} p-8 flex flex-col items-center justify-center border-b`}>
                                 {isCurrentlyLocked ? (
                                     <Icons.Lock className="w-20 h-20 text-red-500 mb-4 animate-pulse" />
@@ -646,10 +648,14 @@
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredUsers.map((user, index) => {
                                 const rawPercent = user.total > 0 ? (user.answered / user.total) * 100 : 0;
-                                const displayPercent = Math.min(rawPercent, 100); // Limita o display visual em 100%
+                                const displayPercent = Math.min(rawPercent, 100); 
                                 
                                 const isBlocked = user.pending > 0;
                                 const isCritical = user.pending > 50;
+                                
+                                // Determina o ícone de status para o card
+                                const StatusIcon = isBlocked ? Icons.Lock : Icons.CheckCircle;
+                                const statusColor = isBlocked ? (isCritical ? 'text-red-500' : 'text-orange-400') : 'text-green-500';
                                 
                                 return (
                                     <div 
@@ -678,13 +684,8 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {!isAdmin && (
-                                                    isBlocked ? (
-                                                        <Icons.Lock className={`w-5 h-5 flex-shrink-0 ${isCritical ? 'text-red-500' : 'text-orange-400'}`} />
-                                                    ) : (
-                                                        <Icons.CheckCircle className="w-5 h-5 flex-shrink-0 text-green-500" />
-                                                    )
-                                                )}
+                                                {/* Status no Card */}
+                                                {!isAdmin && <StatusIcon className={`w-5 h-5 flex-shrink-0 ${statusColor}`} />}
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4 mb-4">
@@ -716,7 +717,6 @@
                                                         />
                                                     ) : (
                                                         <span className="block text-2xl font-bold text-slate-700">
-                                                            {/* Aqui mostramos a porcentagem calculada, mesmo que seja > 100% */}
                                                             {Math.round(rawPercent) + '%'}
                                                         </span>
                                                     )}
@@ -742,7 +742,7 @@
                                             {!isAdmin && (
                                                 <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                                                     <span className="bg-white px-4 py-2 rounded-full shadow-lg text-xs font-bold text-slate-700 flex items-center gap-2">
-                                                        {isBlocked ? <Icons.Lock className="w-3 h-3" /> : <Icons.CheckCircle className="w-3 h-3 text-green-500" />} 
+                                                        <StatusIcon className={`w-3 h-3 ${isBlocked ? 'text-red-500' : 'text-green-500'}`} />
                                                         {isBlocked ? 'Simular Tela' : 'Ver Status'}
                                                     </span>
                                                 </div>
@@ -762,4 +762,5 @@
     </script>
 </body>
 </html>
+
 

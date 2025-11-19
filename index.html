@@ -322,7 +322,7 @@
 
             // --- COMPONENTE: MODAL DE DESBLOQUEIO ---
             const LockModal = ({ user, onClose }) => {
-                if (!user) return null;
+                // Não precisa mais do if (!user) return null, pois o componente só é chamado se houver user
                 const isBlocked = user.pending > 0;
                 
                 const [isPasswordInputVisible, setIsPasswordInputVisible] = useState(false);
@@ -331,14 +331,14 @@
                 const [isProcessing, setIsProcessing] = useState(false); 
                 const [isConcludedLocally, setIsConcludedLocally] = useState(false);
 
+                // Efeito para fechar o modal automaticamente após a conclusão (para UX)
                 useEffect(() => {
                     if (!isBlocked && isConcludedLocally) {
                         const timer = setTimeout(onClose, 500); 
                         return () => clearTimeout(timer);
                     }
-                    if (!isBlocked && !isConcludedLocally) {
-                        onClose();
-                    }
+                    // Se o modal foi aberto para um usuário já concluído, ele fecha.
+                    // Removido o fechamento imediato para permitir que o usuário veja o status Liberado.
                 }, [isBlocked, isConcludedLocally, onClose]);
                 
                 const handleUnlock = (e) => {
@@ -348,6 +348,7 @@
                         setTempError('');
                         setIsPasswordInputVisible(false);
 
+                        // Conclui a tarefa e salva no Firebase
                         handleConcludeTask(user);
                         setIsConcludedLocally(true);
 
@@ -360,8 +361,8 @@
                 const isCurrentlyLocked = isBlocked && !isConcludedLocally;
                 const colorClass = isCurrentlyLocked ? 'border-red-600/50' : 'border-green-500/50';
                 const bgClass = isCurrentlyLocked ? 'bg-red-600/20 border-red-600/30' : 'bg-green-600/20 border-green-600/30';
-                const statusText = isCurrentlyLocked ? 'ACESSO BLOQUEADO' : 'TAREFA CONCLUÍDA';
-                const statusSubText = isCurrentlyLocked ? 'O sistema aguarda ações pendentes para liberar seu acesso.' : 'Pendências zeradas e acesso liberado permanentemente.';
+                const statusText = isCurrentlyLocked ? 'ACESSO BLOQUEADO' : 'LIBERADO';
+                const statusSubText = isCurrentlyLocked ? 'O sistema aguarda ações pendentes para liberar seu acesso.' : 'Todos os feedbacks obrigatórios foram concluídos. Obrigado pela colaboração!';
 
                 return (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-in fade-in duration-300">

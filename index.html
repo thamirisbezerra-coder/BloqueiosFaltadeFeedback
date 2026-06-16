@@ -211,8 +211,18 @@
                             <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold uppercase tracking-widest mb-3">
                                 {rep.segment}
                             </span>
-                            <h3 className="text-xl text-slate-800 font-extrabold text-center mb-1">{rep.name}</h3>
-                            <p className="text-slate-500 text-sm font-bold mb-6 text-center">{rep.statusText}</p>
+                            <h3 className="text-xl text-slate-800 font-extrabold text-center mb-6">{rep.name}</h3>
+                            
+                            <div className="flex w-full gap-4 mb-6">
+                                <div className="flex-1 bg-red-50 rounded-2xl p-4 border border-red-100 text-center">
+                                    <span className="block text-3xl font-extrabold text-red-500">{rep.pendingCount}</span>
+                                    <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest mt-1 block">Pendentes</span>
+                                </div>
+                                <div className="flex-1 bg-emerald-50 rounded-2xl p-4 border border-emerald-100 text-center">
+                                    <span className="block text-3xl font-extrabold text-emerald-600">{rep.completedCount}</span>
+                                    <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-1 block">Respondidos</span>
+                                </div>
+                            </div>
                             
                             <button onClick={onClose} className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-lg shadow-slate-900/20">
                                 Fechar Aviso
@@ -246,12 +256,24 @@
                             {rep.name}
                         </h3>
                         
-                        <div className="mt-auto">
-                            <div className={`text-center w-full py-2.5 rounded-xl border ${rep.isOk ? 'bg-emerald-50/50 border-emerald-100' : 'bg-red-50/50 border-red-100'}`}>
-                                <span className={`block font-bold text-xs uppercase tracking-wider ${rep.isOk ? 'text-emerald-600' : 'text-red-600'}`}>
-                                    {rep.statusText}
-                                </span>
+                        <div className="mt-auto space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-red-50/50 border border-red-100 rounded-lg p-2 text-center">
+                                    <span className="block text-[10px] uppercase font-bold text-red-400">Pendentes</span>
+                                    <span className="block font-black text-red-600 text-lg">{rep.pendingCount}</span>
+                                </div>
+                                <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-2 text-center">
+                                    <span className="block text-[10px] uppercase font-bold text-emerald-500">Respondidos</span>
+                                    <span className="block font-black text-emerald-600 text-lg">{rep.completedCount}</span>
+                                </div>
                             </div>
+                            {rep.isOk && (
+                                <div className={`text-center w-full py-1.5 rounded-lg border bg-emerald-50/50 border-emerald-100`}>
+                                    <span className={`block font-bold text-[10px] uppercase tracking-wider text-emerald-600`}>
+                                        Tudo OK (Baixado)
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -323,15 +345,21 @@
 
                                         // Calcula as pendências exatamente como no Gestor
                                         let pendingCount = 0;
+                                        let completedCount = 0;
                                         let systemBaixado = true;
 
                                         amostras.forEach(s => {
                                             if (s.systemStatus !== 'baixado') systemBaixado = false;
-                                            if (s.isPending) pendingCount++;
+                                            if (s.isPending) {
+                                                pendingCount++;
+                                            } else {
+                                                completedCount++;
+                                            }
                                         });
 
                                         if (systemBaixado) {
                                             pendingCount = 0; // Se o gestor deu baixa global, zera a pendencia
+                                            completedCount = amostras.length; // e considera todos como concluídos
                                         }
 
                                         const isOk = pendingCount === 0;
@@ -342,7 +370,9 @@
                                             statusText: isOk ? "Baixado" : `${pendingCount} pendente(s)`,
                                             isOk,
                                             isPending: !isOk,
-                                            pendingCount
+                                            pendingCount,
+                                            completedCount,
+                                            totalCount: amostras.length
                                         });
                                     });
                                     

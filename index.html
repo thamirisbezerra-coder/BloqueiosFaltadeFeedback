@@ -60,21 +60,23 @@
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const { useState, useEffect, useMemo, useRef } = window.React;
 
-        // Conexão Firebase (Para comunicação automática entre os dois painéis)
+        // Conexão Firebase (ATUALIZADO PARA O MESMO PROJETO DO GESTOR)
         const firebaseConfig = {
-            apiKey: "AIzaSyBjVQvGQt717sPyjVH_ngROxqk5ZVmzQGI",
-            authDomain: "bloqueiosfeedbacks.firebaseapp.com",
-            projectId: "bloqueiosfeedbacks",
-            storageBucket: "bloqueiosfeedbacks.firebasestorage.app",
-            messagingSenderId: "765108774394",
-            appId: "1:765108774394:web:defc34716e800710ff3043"
+            apiKey: "AIzaSyAF_TE28Tbp2nakBGTva1yEEbBCqWvRdJQ", 
+            authDomain: "feedback-vendedores.firebaseapp.com", 
+            projectId: "feedback-vendedores", 
+            storageBucket: "feedback-vendedores.firebasestorage.app", 
+            messagingSenderId: "650880422749", 
+            appId: "1:650880422749:web:54a258964a6ca8db180eb4"
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         // Ícones SVG
         const Icons = {
@@ -86,128 +88,6 @@
             Lock: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
             Search: (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         };
-
-        const RAW_DATA = [
-            { name: "ALEXSANDER DE ANDRADE OLIVEIRA", segment: "SORVETES", statusText: "Baixado", code: "102783" },
-            { name: "ALINE BARROS", segment: "NUTRIÇÃO ANIMAL", statusText: "Baixado", code: "142036" },
-            { name: "ALISSON FERNANDES", segment: "LÁCTEOS", statusText: "233 pendente(s)", code: "615677" },
-            { name: "ANA MOTA", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "867793" },
-            { name: "ANDRE FELIX", segment: "SORVETES", statusText: "Dar Baixa no Sistema", code: "567626" },
-            { name: "ANDRE SILVA", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "892121" },
-            { name: "ANDREIA TINTI", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Baixado", code: "519794" },
-            { name: "ANDRÉ BRESSANIN", segment: "SORVETES", statusText: "Baixado", code: "509154" },
-            { name: "ANTENOR ADRIANO", segment: "SORVETES", statusText: "9 pendente(s)", code: "517258" },
-            { name: "BRUNO VERONEZ", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "772317" },
-            { name: "CAIO SANTOS", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Baixado", code: "710602" },
-            { name: "CAMILA BENTO", segment: "LÁCTEOS", statusText: "Baixado", code: "566318" },
-            { name: "CLAUDIANO TERCARIOL", segment: "SORVETES", statusText: "8 pendente(s)", code: "992359" },
-            { name: "CRISTIANE OLIVEIRA", segment: "LÁCTEOS", statusText: "Baixado", code: "664563" },
-            { name: "CRISTIANO RAMOS", segment: "CÁRNEOS", statusText: "Baixado", code: "614599" },
-            { name: "DANIEL MARQUES", segment: "PANIFICAÇÃO", statusText: "Baixado", code: "153665" },
-            { name: "DANILO ARAUJO", segment: "SORVETES", statusText: "Baixado", code: "629766" },
-            { name: "DANILO TREMOCOLDI", segment: "NUTRIÇÃO ANIMAL", statusText: "Baixado", code: "707596" },
-            { name: "DELMAR PAES", segment: "SORVETES", statusText: "61 pendente(s)", code: "367999" },
-            { name: "DIEGO FIORIO", segment: "SORVETES", statusText: "Baixado", code: "916855" },
-            { name: "DIRETO - FISCAL", segment: "Sem Segmento", statusText: "Baixado", code: "282589" },
-            { name: "DIRETO-DANTE", segment: "LÁCTEOS", statusText: "Baixado", code: "923610" },
-            { name: "DOUGLAS SILVA", segment: "SORVETES", statusText: "Baixado", code: "935396" },
-            { name: "EUCLEBIO SOUZA", segment: "SORVETES", statusText: "Baixado", code: "691238" },
-            { name: "FABRICIO NOGUEIRA", segment: "LÁCTEOS", statusText: "Baixado", code: "203573" },
-            { name: "FABRICIO OLIVEIRA DE CARVALHO", segment: "SORVETES", statusText: "5 pendente(s)", code: "822197" },
-            { name: "FELIPE LOHAN", segment: "LÁCTEOS", statusText: "Baixado", code: "461379" },
-            { name: "FELIPE LOPES BARBOSA", segment: "SORVETES", statusText: "Baixado", code: "386916" },
-            { name: "FERNANDA BEATRIZ", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Baixado", code: "723899" },
-            { name: "FERNANDA CAMPOS", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "16 pendente(s)", code: "599805" },
-            { name: "FLAVIO BORTOLINI", segment: "EXPORTAÇÃO", statusText: "248 pendente(s)", code: "709884" },
-            { name: "FRANCISCO ALVES FERREIRA", segment: "SORVETES", statusText: "92 pendente(s)", code: "316323" },
-            { name: "GABRIEL PAZIANOTO", segment: "SORVETES", statusText: "Baixado", code: "612594" },
-            { name: "GEORGIA ARAUJO", segment: "SORVETES", statusText: "Baixado", code: "232234" },
-            { name: "GILBERTO JUNIOR", segment: "PANIFICAÇÃO", statusText: "45 pendente(s)", code: "505143" },
-            { name: "GLAUCIO MARINI", segment: "CÁRNEOS", statusText: "78 pendente(s)", code: "663855" },
-            { name: "GUILHERME ANTONIO", segment: "SORVETES", statusText: "Baixado", code: "676104" },
-            { name: "GUILHERME SILVA", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "165624" },
-            { name: "IGOR CROVATO", segment: "LÁCTEOS", statusText: "Baixado", code: "940110" },
-            { name: "JACKSON DE ALMEIDA FREITAS", segment: "SORVETES", statusText: "Baixado", code: "992217" },
-            { name: "JEAN GNEWUCH", segment: "SORVETES", statusText: "Baixado", code: "605720" },
-            { name: "JOAO SCHITTKOWSKI", segment: "NUTRIÇÃO ESPORTIVA", statusText: "154 pendente(s)", code: "530772" },
-            { name: "JULIANA LAGUNA", segment: "PANIFICAÇÃO", statusText: "Baixado", code: "520129" },
-            { name: "JURACI TALASCA", segment: "CÁRNEOS", statusText: "Baixado", code: "290883" },
-            { name: "KARLA ALMEIDA", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Baixado", code: "590464" },
-            { name: "LEANDRO CASTRO", segment: "CÁRNEOS", statusText: "1 pendente(s)", code: "562426" },
-            { name: "LEANDRO FENALTI", segment: "PANIFICAÇÃO", statusText: "97 pendente(s)", code: "584751" },
-            { name: "LEANDRO GASPARINI", segment: "PANIFICAÇÃO", statusText: "Dar Baixa no Sistema", code: "136304" },
-            { name: "LEILA RODRIGUES", segment: "PANIFICAÇÃO", statusText: "27 pendente(s)", code: "810090" },
-            { name: "LEONARDO GARCIA", segment: "CÁRNEOS", statusText: "31 pendente(s)", code: "990385" },
-            { name: "LEONARDO SODRE", segment: "CÁRNEOS", statusText: "Baixado", code: "221285" },
-            { name: "LUCIMARIO BEZERRA DA SILVA", segment: "SORVETES", statusText: "40 pendente(s)", code: "809565" },
-            { name: "LUIS ADRIANO", segment: "CÁRNEOS", statusText: "Baixado", code: "494818" },
-            { name: "LUIS FELIPE CASSA", segment: "SORVETES", statusText: "Baixado", code: "316060" },
-            { name: "LUIS SCARPIN", segment: "FOOD SERVICE", statusText: "71 pendente(s)", code: "851986" },
-            { name: "LUIZ FELIPE", segment: "SORVETES", statusText: "Baixado", code: "260945" },
-            { name: "MAICON SILVA", segment: "SORVETES", statusText: "Baixado", code: "399957" },
-            { name: "MARCELA SASPADINI", segment: "NUTRACÊUTICOS", statusText: "5 pendente(s)", code: "221795" },
-            { name: "MARCELO COSTA", segment: "LÁCTEOS", statusText: "Baixado", code: "311761" },
-            { name: "MARCIA POPOSKI", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "450945" },
-            { name: "MARCO ANTONIO", segment: "SORVETES", statusText: "Baixado", code: "469086" },
-            { name: "MARCUS MASCARENHAS", segment: "SORVETES", statusText: "Baixado", code: "143952" },
-            { name: "MARIANA CONEGERO", segment: "EXPORTAÇÃO", statusText: "258 pendente(s)", code: "558361" },
-            { name: "MARINA POSSEBON", segment: "CÁRNEOS", statusText: "Baixado", code: "575454" },
-            { name: "MARIO GUERRERO", segment: "EXPORTAÇÃO", statusText: "400 pendente(s)", code: "978014" },
-            { name: "MARISTELA THOMAZINI", segment: "PANIFICAÇÃO", statusText: "36 pendente(s)", code: "199216" },
-            { name: "MARITZA TEIXEIRA", segment: "PANIFICAÇÃO", statusText: "52 pendente(s)", code: "352955" },
-            { name: "MARLON BARANOSKI", segment: "PANIFICAÇÃO", statusText: "20 pendente(s)", code: "749225" },
-            { name: "MARTIN SCHWARZ", segment: "SORVETES", statusText: "Baixado", code: "679759" },
-            { name: "MELINA MUFFO RUZZI", segment: "SORVETES", statusText: "Baixado", code: "491731" },
-            { name: "MORLEY RAMALHO", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "438977" },
-            { name: "NATA ZAFENATE", segment: "SORVETES", statusText: "43 pendente(s)", code: "946919" },
-            { name: "PATRICIA CORREIA", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Baixado", code: "118153" },
-            { name: "PAULO BARRETO", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "561265" },
-            { name: "PEDRO DE OLIVEIRA SILVA", segment: "SORVETES", statusText: "Dar Baixa no Sistema", code: "926523" },
-            { name: "PEDRO LESSA", segment: "SORVETES", statusText: "Baixado", code: "841365" },
-            { name: "RENATO VASCONCELOS", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Baixado", code: "604318" },
-            { name: "RICARDO BUKALIL", segment: "SORVETES", statusText: "98 pendente(s)", code: "940240" },
-            { name: "SAULO NÁCLE PEREIRA", segment: "SORVETES", statusText: "29 pendente(s)", code: "171872" },
-            { name: "SERGIO VIEIRA", segment: "NUTRIÇÃO ESPORTIVA", statusText: "Dar Baixa no Sistema", code: "527772" },
-            { name: "SIDNEI RODRIGUES", segment: "FARMA", statusText: "482 pendente(s)", code: "815353" },
-            { name: "TATIANE LOURENCO", segment: "FARMA", statusText: "212 pendente(s)", code: "589997" },
-            { name: "VAGA - ALEXANDRE NASCIMENTO", segment: "Sem Segmento", statusText: "56 pendente(s)", code: "655296" },
-            { name: "VAGA - ED CARLOS RIBEIRO SANTANA", segment: "CÁRNEOS", statusText: "Baixado", code: "918512" },
-            { name: "VAGA - PATRICIA ALVES PINATTI", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "169 pendente(s)", code: "944962" },
-            { name: "VANESSA POLIDO", segment: "NUTRACÊUTICOS", statusText: "Baixado", code: "308606" },
-            { name: "VICTOR ROSSI", segment: "FARMA", statusText: "147 pendente(s)", code: "204767" },
-            { name: "VINICIUS MADALENO", segment: "SORVETES", statusText: "Baixado", code: "404623" },
-            { name: "VINICIUS REGINATO", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Dar Baixa no Sistema", code: "192578" },
-            { name: "VINICIUS SILVA", segment: "SNACKS, MOLHOS E BEBIDAS", statusText: "Dar Baixa no Sistema", code: "487737" },
-            { name: "VITOR DINIZ", segment: "SORVETES", statusText: "Baixado", code: "257764" },
-            { name: "VITOR VINAS DUTRA", segment: "SORVETES", statusText: "38 pendente(s)", code: "625498" },
-            { name: "WASHINGTON DIAS", segment: "CÁRNEOS", statusText: "Baixado", code: "999429" },
-            { name: "WILSON LUCENA", segment: "SORVETES", statusText: "3 pendente(s)", code: "324596" }
-        ].map(item => {
-            // Processamento lógico para determinar a flag VERDE/VERMELHO
-            const isOk = item.statusText.toLowerCase() === "baixado";
-            const isPending = !isOk;
-            
-            // Extrai número de pendências se existir
-            let pendingCount = 0;
-            if (item.statusText.includes("pendente")) {
-                const match = item.statusText.match(/\d+/);
-                if (match) pendingCount = parseInt(match[0]);
-            } else if (item.statusText.includes("Dar Baixa")) {
-                pendingCount = 1; // Representa pendência de ação manual
-            }
-
-            // Normalizando os Nomes dos Segmentos
-            let normSegment = item.segment;
-            if(normSegment === "SMB") normSegment = "SNACKS, MOLHOS E BEBIDAS";
-            
-            return {
-                ...item,
-                segment: normSegment,
-                isOk,
-                isPending,
-                pendingCount
-            };
-        });
 
         function DoughnutChart({ data }) {
             const canvasRef = useRef(null);
@@ -383,43 +263,106 @@
             const [searchTerm, setSearchTerm] = useState("");
             const [selectedRep, setSelectedRep] = useState(null);
             
-            // Novos estados para a Sidebar e para Dados em Tempo Real
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-            const [usersData, setUsersData] = useState(RAW_DATA);
+            const [usersData, setUsersData] = useState([]); // Inicia vazio para não piscar dados velhos
 
-            // Ouvinte de Tempo Real do Firebase
+            // Ouvinte de Tempo Real do Firebase (INTEGRADO COM O GESTOR)
             useEffect(() => {
-                const docRef = doc(db, 'feedback_data', 'main_list');
-                const unsubscribe = onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const fbUsers = docSnap.data().users;
-                        if (fbUsers && fbUsers.length > 0) {
-                            // Converte os dados do outro painel para o visual deste dashboard
-                            const formatted = fbUsers.map(item => {
-                                const pendingCount = item.pending || 0;
-                                const isPending = pendingCount > 0;
-                                const isOk = !isPending;
-                                
-                                let normSegment = item.segment;
-                                if(normSegment === "SMB") normSegment = "SNACKS, MOLHOS E BEBIDAS";
+                const activeSessionRef = doc(db, "configuracoes", "sessaoAtiva");
+                let unsubscribeSession = null;
+                let unsubscribeData = null;
 
-                                return {
-                                    name: item.name,
-                                    segment: normSegment,
-                                    statusText: isOk ? "Baixado" : `${pendingCount} pendente(s)`,
-                                    isOk,
-                                    isPending,
-                                    pendingCount
-                                };
-                            });
-                            setUsersData(formatted); // Atualiza toda a tela!
+                // Necessário autenticar anonimamente para passar nas regras de segurança do Firestore
+                signInAnonymously(auth).then(() => {
+                    unsubscribeSession = onSnapshot(activeSessionRef, async (docSnap) => {
+                        const activeSessionId = docSnap.exists() ? docSnap.data().current : null;
+                        
+                        if (activeSessionId) {
+                            try {
+                                // Buscar os segmentos atualizados (que o Gestor guardou em vendedorConfig)
+                                const configSnap = await getDocs(collection(db, "vendedorConfig"));
+                                const segmentCache = {};
+                                configSnap.forEach(d => { segmentCache[d.id] = d.data().segmento; });
+
+                                if (unsubscribeData) unsubscribeData();
+
+                                // Ouvir as amostras dos vendedores EM TEMPO REAL
+                                unsubscribeData = onSnapshot(collection(db, "sessoes", activeSessionId, "vendedores"), (snapshot) => {
+                                    const formatted = [];
+                                    
+                                    snapshot.docs.forEach(vendorDoc => {
+                                        const data = vendorDoc.data();
+                                        const sellerName = data.originalName || vendorDoc.id;
+                                        const amostras = data.amostras || [];
+                                        
+                                        // Normalize id para buscar o segmento
+                                        const normalizeText = (text = '') => text ? text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : '';
+                                        const sanitizeForFirebaseId = (text) => normalizeText(text).replace(/\//g, "-");
+                                        
+                                        const sellerId = sanitizeForFirebaseId(sellerName);
+                                        
+                                        // Limpar espaços extras e padronizar para maiúsculas para evitar duplicados
+                                        let segmentRaw = segmentCache[sellerId] || "Sem Segmento";
+                                        let segment = segmentRaw.toUpperCase().trim();
+                                        
+                                        // Mapa de Correção Ortográfica e Siglas
+                                        const segmentCorrections = {
+                                            "SMB": "SNACKS, MOLHOS E BEBIDAS",
+                                            "CARNEOS": "CÁRNEOS",
+                                            "LACTEOS": "LÁCTEOS",
+                                            "NUTRICAO ANIMAL": "NUTRIÇÃO ANIMAL",
+                                            "NUTRICAO ESPORTIVA": "NUTRIÇÃO ESPORTIVA",
+                                            "EXPORTACAO": "EXPORTAÇÃO",
+                                            "PANIFICACAO": "PANIFICAÇÃO",
+                                            "NUTRIÇÃO ESPORTIVA": "NUTRIÇÃO ESPORTIVA" // caso venha já com algum acento diferente
+                                        };
+
+                                        if (segmentCorrections[segment]) {
+                                            segment = segmentCorrections[segment];
+                                        }
+
+                                        // Calcula as pendências exatamente como no Gestor
+                                        let pendingCount = 0;
+                                        let systemBaixado = true;
+
+                                        amostras.forEach(s => {
+                                            if (s.systemStatus !== 'baixado') systemBaixado = false;
+                                            if (s.isPending) pendingCount++;
+                                        });
+
+                                        if (systemBaixado) {
+                                            pendingCount = 0; // Se o gestor deu baixa global, zera a pendencia
+                                        }
+
+                                        const isOk = pendingCount === 0;
+
+                                        formatted.push({
+                                            name: sellerName,
+                                            segment: segment,
+                                            statusText: isOk ? "Baixado" : `${pendingCount} pendente(s)`,
+                                            isOk,
+                                            isPending: !isOk,
+                                            pendingCount
+                                        });
+                                    });
+                                    
+                                    setUsersData(formatted); // Atualiza os blocos da tela!
+                                });
+                            } catch (error) {
+                                console.error("Erro ao sincronizar os dados dos vendedores:", error);
+                            }
                         }
-                    }
-                }, (error) => {
-                    console.error("Erro ao sincronizar com Firebase:", error);
+                    }, (error) => {
+                        console.error("Erro ao sincronizar Sessão:", error);
+                    });
+                }).catch((error) => {
+                    console.error("Erro ao autenticar no Firebase:", error);
                 });
 
-                return () => unsubscribe();
+                return () => {
+                    if (unsubscribeSession) unsubscribeSession();
+                    if (unsubscribeData) unsubscribeData();
+                };
             }, []);
 
             const segments = useMemo(() => {
@@ -461,7 +404,7 @@
                     {/* STATUS MODAL */}
                     <StatusModal rep={selectedRep} onClose={() => setSelectedRep(null)} />
 
-                    {/* SIDEBAR (MENU LATERAL) - Agora ela pode abrir/fechar suavemente */}
+                    {/* SIDEBAR (MENU LATERAL) */}
                     <div className={`transition-all duration-300 ease-in-out flex-shrink-0 z-20 bg-white border-r border-slate-200 shadow-sm overflow-hidden ${isSidebarOpen ? 'w-72' : 'w-0 border-none'}`}>
                         <aside className="w-72 text-slate-700 flex flex-col h-full">
                             {/* Logo Area */}
@@ -558,8 +501,16 @@
                         {/* Área Rolável */}
                         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                             
+                            {/* ESTADO VAZIO / CARREGANDO */}
+                            {usersData.length === 0 && (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
+                                    <p className="font-medium animate-pulse">Buscando dados no sistema...</p>
+                                </div>
+                            )}
+
                             {/* DASHBOARD VIEW */}
-                            {activeView === "Visão Geral" && !searchTerm && (
+                            {activeView === "Visão Geral" && !searchTerm && usersData.length > 0 && (
                                 <div className="space-y-8 animate-fade-in">
                                     {/* Cards Superiores */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -594,7 +545,7 @@
                             )}
 
                             {/* GRID DE VENDEDORES (Para Visão de Segmento ou Busca) */}
-                            {(activeView !== "Visão Geral" || searchTerm) && (
+                            {((activeView !== "Visão Geral" || searchTerm) && usersData.length > 0) && (
                                 <div className="animate-fade-in">
                                     <div className="flex justify-between items-center mb-6">
                                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -634,6 +585,5 @@
     </script>
 </body>
 </html>
-
 
 
